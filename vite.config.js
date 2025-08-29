@@ -13,5 +13,27 @@ export default defineConfig({
         secure: false,
       }
     }
-  }
+  },
+  build: {
+    rollupOptions: {
+      external: [],
+    },
+    commonjsOptions: {
+      include: [/node_modules/],
+    },
+    target: 'es2015',
+    outDir: 'dist',
+    assetsDir: 'assets',
+  },
+  optimizeDeps: {
+    include: ['lucide-react', 'react', 'react-dom'],
+  },
+  resolve: {
+    alias: {
+      '@': '/src',
+    },
+  },
+  define: {
+    'process.env.NODE_ENV': '"production"',
+  },
 })
