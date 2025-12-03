@@ -1,52 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { getApiBase, authHeaders, showToast } from '../utils/api';
+import { subscribe as subscribeAdminWs } from '../utils/wsAdmin';
 import { settingsAPI, settingsToObject, objectToSettings } from '../utils/settings.js';
-import { BarChart, Users, Monitor, Gamepad2, DollarSign, Settings as SettingsIcon, Annoyed, Bell, LogOut, Search, ChevronDown, Clock, Wallet, Ticket, ShieldCheck, Cpu, Package, ShoppingCart, Calendar, Tag, Star, Award, Gift, Percent, MessageSquare } from 'lucide-react';
-
-// Mock Data based on your schemas.py and models.py
-// In a real app, this would come from API calls.
-const MOCK_PCS = [
-    { id: 1, name: 'Gaming-PC-01', status: 'in_use', current_user: 'PlayerOne', ip_address: '192.168.1.101', session_start: new Date(Date.now() - 2 * 60 * 60 * 1000), suspended: false },
-    { id: 2, name: 'Gaming-PC-02', status: 'idle', current_user: null, ip_address: '192.168.1.102', session_start: null, suspended: false },
-    { id: 3, name: 'Gaming-PC-03', status: 'offline', current_user: null, ip_address: '192.168.1.103', session_start: null, suspended: true },
-    { id: 4, name: 'Gaming-PC-04', status: 'in_use', current_user: 'GamerGirl99', ip_address: '192.168.1.104', session_start: new Date(Date.now() - 30 * 60 * 1000), suspended: false },
-    { id: 5, name: 'VIP-PC-01', status: 'locked', current_user: 'HighRoller', ip_address: '192.168.1.105', session_start: null, suspended: false },
-    { id: 6, name: 'Streaming-PC', status: 'idle', current_user: null, ip_address: '192.168.1.106', session_start: null, suspended: false },
-];
-
-const MOCK_USERS = [
-    { id: 101, name: 'PlayerOne', email: 'player1@example.com', role: 'client', wallet_balance: 15.50, coins_balance: 1200, user_group: 'Standard' },
-    { id: 102, name: 'GamerGirl99', email: 'gg99@example.com', role: 'client', wallet_balance: 5.25, coins_balance: 5400, user_group: 'Premium' },
-    { id: 103, name: 'HighRoller', email: 'hr@example.com', role: 'client', wallet_balance: 150.00, coins_balance: 25000, user_group: 'VIP' },
-    { id: 104, name: 'CafeAdmin', email: 'admin@cafe.com', role: 'admin', wallet_balance: 0, coins_balance: 0, user_group: 'Staff' },
-    { id: 105, name: 'CafeStaff', email: 'staff@cafe.com', role: 'staff', wallet_balance: 0, coins_balance: 0, user_group: 'Staff' },
-];
-
-const MOCK_GAMES = [
-    { id: 1, name: 'Cyberpunk 2077', exe_path: 'C:\\Games\\Cyberpunk\\bin\\start.exe', is_free: false, min_age: 18 },
-    { id: 2, name: 'Valorant', exe_path: 'C:\\Riot Games\\Valorant\\live\\VALORANT.exe', is_free: true, min_age: 13 },
-    { id: 3, name: 'The Witcher 3', exe_path: 'C:\\Games\\Witcher3\\witcher3.exe', is_free: false, min_age: 18 },
-    { id: 4, name: 'Fortnite', exe_path: 'C:\\Epic Games\\Fortnite\\FortniteGame.exe', is_free: true, min_age: 13 },
-];
-
-const MOCK_OFFERS = [
-    { id: 1, name: '5 Hour Pack', price: 10, hours: 5, active: true },
-    { id: 2, name: '12 Hour Pack', price: 20, hours: 12, active: true },
-    { id: 3, name: 'Weekend Pass', price: 35, hours: 48, active: false },
-];
-
-const MOCK_SESSIONS = [
-    { id: 1, pc_name: 'Gaming-PC-01', user_name: 'PlayerOne', start_time: new Date(Date.now() - 2 * 60 * 60 * 1000), end_time: null, amount: 5.00 },
-    { id: 2, pc_name: 'Gaming-PC-04', user_name: 'GamerGirl99', start_time: new Date(Date.now() - 30 * 60 * 1000), end_time: null, amount: 1.25 },
-    { id: 3, pc_name: 'Gaming-PC-02', user_name: 'TestUser', start_time: new Date(Date.now() - 5 * 60 * 60 * 1000), end_time: new Date(Date.now() - 3 * 60 * 60 * 1000), amount: 5.00 },
-];
-
-const MOCK_ANNOUNCEMENTS = [
-    { id: 1, content: "Weekend double XP event is now live!", type: 'success', active: true },
-    { id: 2, content: "We will be closed on Monday for maintenance.", type: 'warning', active: true },
-    { id: 3, content: "New game 'Starfield' is now available on all PCs.", type: 'info', active: false },
-];
+import { BarChart, Users, Monitor, Gamepad2, DollarSign, Settings as SettingsIcon, Annoyed, LogOut, Search, ChevronDown, Clock, Wallet, Ticket, ShieldCheck, Cpu, Package, ShoppingCart, Calendar, Tag, Star, Award, Gift, Percent, MessageSquare } from 'lucide-react';
+import ChatPanel from './ChatPanel.jsx';
+import NotificationBell from './NotificationBell.jsx';
 
 
 // Helper Components
@@ -175,8 +134,6 @@ const Dashboard = () => {
     );
 };
 
-const DEMO_PC = { id: -1, name: 'Demo-PC-01', status: 'idle', ip_address: '192.168.1.50' };
-
 const PCManagement = () => {
     const [pcs, setPcs] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -184,6 +141,7 @@ const PCManagement = () => {
     const [selectedPc, setSelectedPc] = useState(null);
     const [command, setCommand] = useState('');
     const [menuOpenId, setMenuOpenId] = useState(null);
+    const [chatPc, setChatPc] = useState(null);
 
     const fetchPcs = useCallback(async () => {
         try {
@@ -193,10 +151,26 @@ const PCManagement = () => {
             let list = [];
             try {
                 const r = await axios.get(`${base}/api/clientpc/`, { headers: authHeaders() });
-                list = (r.data || []).map(p => ({ id: p.id, name: p.name, status: p.status || 'idle', ip_address: p.ip_address || '—' }));
+                list = (r.data || []).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    status: p.status || 'idle',
+                    ip_address: p.ip_address || '—',
+                    last_seen: p.last_seen || null,
+                    remaining_time: null,
+                    online: p.status === 'online' || p.status === 'in_use',
+                }));
             } catch {
                 const r2 = await axios.get(`${base}/api/pc/`, { headers: authHeaders() });
-                list = (r2.data || []).map(p => ({ id: p.id, name: p.name, status: p.status || 'idle', ip_address: p.ip_address || '—' }));
+                list = (r2.data || []).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    status: p.status || 'idle',
+                    ip_address: p.ip_address || '—',
+                    last_seen: null,
+                    remaining_time: null,
+                    online: p.status === 'online' || p.status === 'in_use',
+                }));
             }
             setPcs(list);
         } catch (e) {
@@ -208,13 +182,97 @@ const PCManagement = () => {
 
     useEffect(() => {
         fetchPcs();
-        // Avoid flicker: only refresh status every 30s
-        const t = setInterval(fetchPcs, 30000);
-        return () => clearInterval(t);
+        // Keep a long-interval polling fallback (5 minutes) for safety; real-time is via WebSocket.
+        const t = setInterval(fetchPcs, 5 * 60 * 1000);
+
+        // Subscribe to ws/admin events for real-time PC updates
+        const unsubscribe = subscribeAdminWs((msg) => {
+            if (!msg || !msg.event) return;
+            if (msg.event === 'pc.status.update') {
+                const payload = msg.payload || {};
+                const id = payload.client_id;
+                if (!id) return;
+                setPcs((prev) => {
+                    let found = false;
+                    const next = prev.map((pc) => {
+                        if (pc.id !== id) return pc;
+                        found = true;
+                        return {
+                            ...pc,
+                            name: payload.hostname || pc.name,
+                            status: payload.online === false ? 'offline' : pc.status,
+                            online: payload.online !== false,
+                            last_seen: payload.last_heartbeat || pc.last_seen,
+                            remaining_time: payload.remaining_time ?? pc.remaining_time,
+                            user_name: payload.user_name || pc.user_name,
+                        };
+                    });
+                    if (!found) {
+                        // If a new PC appears via WS before initial list load finishes
+                        next.push({
+                            id,
+                            name: payload.hostname || `PC-${id}`,
+                            status: payload.online === false ? 'offline' : 'online',
+                            ip_address: '—',
+                            last_seen: payload.last_heartbeat || null,
+                            remaining_time: payload.remaining_time ?? null,
+                            online: payload.online !== false,
+                            user_name: payload.user_name || null,
+                        });
+                    }
+                    return next;
+                });
+            }
+            if (msg.event === 'pc.time.update') {
+                const payload = msg.payload || {};
+                const id = payload.client_id;
+                if (!id) return;
+                const seconds = payload.remaining_time_seconds ?? payload.remaining_time;
+                setPcs((prev) =>
+                    prev.map((pc) =>
+                        pc.id === id
+                            ? {
+                                  ...pc,
+                                  remaining_time:
+                                      typeof seconds === 'number'
+                                          ? Math.floor(seconds / 60)
+                                          : pc.remaining_time,
+                              }
+                            : pc
+                    )
+                );
+            }
+            if (msg.event === 'shop.purchase') {
+                const payload = msg.payload || {};
+                const clientId = payload.client_id;
+                const packName = payload.pack_name || 'pack';
+                const minutes = payload.minutes || 0;
+                showToast(
+                    `Client ${clientId || ''} purchased ${packName} (+${minutes} min).`.trim()
+                );
+                if (clientId) {
+                    setPcs((prev) =>
+                        prev.map((pc) =>
+                            pc.id === clientId
+                                ? {
+                                      ...pc,
+                                      remaining_time:
+                                          (pc.remaining_time || 0) + (minutes || 0),
+                                  }
+                                : pc
+                        )
+                    );
+                }
+            }
+        });
+
+        return () => {
+            clearInterval(t);
+            unsubscribe && unsubscribe();
+        };
     }, [fetchPcs]);
 
     const sendCmd = async (pcId, cmd, paramsObj) => {
-        if (pcId === DEMO_PC.id) { showToast('Demo: command not sent'); return; }
         try {
             const base = getApiBase().replace(/\/$/, "");
             const payload = { pc_id: pcId, command: cmd, params: paramsObj ? JSON.stringify(paramsObj) : null };
@@ -303,22 +361,47 @@ const PCManagement = () => {
             <h2 className="text-gray-300 font-semibold mb-3">Computers</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {loading && [1,2,3,4].map(i => (<div key={i} className="card-animated p-5 h-40 skeleton-shimmer" />))}
-                {!loading && (pcs.length ? pcs : [DEMO_PC]).map(pc => (
+                {!loading && pcs.length === 0 && (
+                    <div className="card-animated p-5 text-sm text-gray-400">
+                        No systems registered yet. Clients will appear here once they connect.
+                    </div>
+                )}
+                {!loading && pcs.length > 0 && pcs.map(pc => (
                     <div key={pc.id} className="card-animated p-5 flex flex-col justify-between relative">
                         <div>
                             <div className="flex justify-between items-start">
-                                <h3 className="text-lg font-bold text-white">{pc.name}</h3>
+                                <div className="flex items-center gap-2">
+                                    <span
+                                        className={`w-2 h-2 rounded-full ${
+                                            pc.online ? 'bg-green-400 animate-pulse' : 'bg-red-500'
+                                        }`}
+                                    />
+                                    <h3 className="text-lg font-bold text-white">{pc.name}</h3>
+                                </div>
                                 <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getStatusClasses(pc.status)}`}>
                                     {pc.status.replace('_', ' ')}
                                 </span>
                                 <button className="ml-2 text-gray-400 hover:text-white" onClick={() => setMenuOpenId(menuOpenId === pc.id ? null : pc.id)}>⋮</button>
                             </div>
                             <p className="text-sm text-gray-400 mt-1">{pc.ip_address}</p>
-                            {pc.id === DEMO_PC.id && (<div className="mt-2 text-[10px] uppercase tracking-wider text-purple-300">Demo card</div>)}
-                            {pc.status === 'in_use' && pc.current_user && (
+                            {pc.last_seen && (
+                                <p className="text-[11px] text-gray-500 mt-1">
+                                    Last seen: {new Date(pc.last_seen).toLocaleTimeString()}
+                                </p>
+                            )}
+                            {typeof pc.remaining_time === 'number' && (
+                                <p className="text-[11px] text-indigo-300 mt-1">
+                                    Remaining time: {pc.remaining_time} min
+                                </p>
+                            )}
+                            {pc.user_name && (
                                 <div className="mt-4 text-sm bg-gray-700/50 p-3 rounded-lg">
-                                    <p className="text-gray-300">User: <span className="font-semibold text-white">{pc.current_user}</span></p>
-                                    <p className="text-gray-300">Time: <span className="font-semibold text-white">{Math.floor((Date.now() - new Date(pc.session_start).getTime()) / (1000 * 60))} mins</span></p>
+                                    <p className="text-gray-300">
+                                        User:{' '}
+                                        <span className="font-semibold text-white">
+                                            {pc.user_name}
+                                        </span>
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -327,6 +410,9 @@ const PCManagement = () => {
                             <Button onClick={() => sendCmd(pc.id, 'unlock')} variant="secondary" className="flex-1 text-xs">Unlock</Button>
                             <Button onClick={() => sendCmd(pc.id, 'restart')} variant="secondary" className="flex-1 text-xs">Restart</Button>
                             <Button onClick={() => { const text = prompt('Message to display on PC'); if (text) sendCmd(pc.id, 'message', { text }); }} variant="secondary" className="flex-1 text-xs">Message</Button>
+                            <Button onClick={() => setChatPc(pc)} variant="secondary" className="flex-1 text-xs">
+                                <MessageSquare size={12} className="mr-1" /> Chat
+                            </Button>
                         </div>
                         {menuOpenId === pc.id && (
                             <div className="absolute -right-2 top-8 z-50 w-48 rounded-lg shadow-2xl"
@@ -357,12 +443,13 @@ const PCManagement = () => {
                     </div>
                 )}
             </Modal>
+            {chatPc && <ChatPanel pc={chatPc} onClose={() => setChatPc(null)} />}
         </div>
     );
 };
 
 const UserManagement = () => {
-    const [users, setUsers] = useState(MOCK_USERS);
+    const [users, setUsers] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [action, setAction] = useState('');
@@ -404,6 +491,13 @@ const UserManagement = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700/50">
+                        {users.length === 0 && (
+                            <tr>
+                                <td className="p-4 text-sm text-gray-400" colSpan={6}>
+                                    No users loaded yet. Connect to the backend to manage users.
+                                </td>
+                            </tr>
+                        )}
                         {users.map(user => (
                             <tr key={user.id} className="hover:bg-gray-700/30 transition-colors">
                                 <td className="p-4 font-medium text-white">{user.name}</td>
@@ -455,19 +549,8 @@ const UserManagement = () => {
 const GameManagement = () => (
     <div>
         <h1 className="text-3xl font-bold text-white mb-6">Game Library</h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {MOCK_GAMES.map(game => (
-                <div key={game.id} className="bg-gray-800 rounded-xl p-5 shadow-lg border border-gray-700/50">
-                    <h3 className="text-lg font-bold text-white">{game.name}</h3>
-                    <p className="text-xs text-gray-500 truncate mt-1" title={game.exe_path}>{game.exe_path}</p>
-                    <div className="flex justify-between items-center mt-4">
-                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${game.is_free ? 'bg-green-500/20 text-green-300' : 'bg-purple-500/20 text-purple-300'}`}>
-                            {game.is_free ? 'Free to Play' : 'Paid'}
-                        </span>
-                        {game.min_age && <span className="text-xs text-gray-400">Age: {game.min_age}+</span>}
-                    </div>
-                </div>
-            ))}
+        <div className="card-animated p-6 text-sm text-gray-400">
+            No games loaded. Configure games in the backend to see them listed here.
         </div>
     </div>
 );
@@ -511,25 +594,15 @@ const Financials = () => (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700/50">
                 <h2 className="text-xl font-semibold text-white mb-4 flex items-center"><Package className="mr-3 text-indigo-400"/> Offers & Packages</h2>
-                <div className="space-y-3">
-                    {MOCK_OFFERS.map(offer => (
-                        <div key={offer.id} className="flex justify-between items-center bg-gray-700/50 p-4 rounded-lg">
-                            <div>
-                                <p className="font-semibold text-white">{offer.name}</p>
-                                <p className="text-sm text-gray-400">{offer.hours} hours</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="font-mono text-green-400">${offer.price.toFixed(2)}</p>
-                                <span className={`text-xs font-bold ${offer.active ? 'text-green-400' : 'text-red-400'}`}>{offer.active ? 'Active' : 'Inactive'}</span>
-                            </div>
-                        </div>
-                    ))}
+                <div className="text-gray-400 text-sm">
+                    No offers loaded. Configure membership packages and offers in the backend.
                 </div>
             </div>
             <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700/50">
                 <h2 className="text-xl font-semibold text-white mb-4 flex items-center"><DollarSign className="mr-3 text-indigo-400"/> Pricing Rules</h2>
-                {/* Pricing rules would be listed here based on `PricingRule` model */}
-                <div className="text-gray-400">Pricing rule management coming soon.</div>
+                <div className="text-gray-400 text-sm">
+                    Pricing rule management coming soon. No demo pricing data is displayed.
+                </div>
             </div>
         </div>
     </div>
@@ -1084,6 +1157,7 @@ const StatisticsPage = () => {
 // Main App Component
 const App = () => {
     const [activePage, setActivePage] = useState('Dashboard');
+    const [activeChatContext, setActiveChatContext] = useState(null);
 
     const NavItem = ({ pageName, icon, children }) => (
         <li
@@ -1167,15 +1241,25 @@ const App = () => {
                         />
                     </div>
                     <div className="flex items-center space-x-6">
-                        <button className="text-gray-400 hover:text-white relative">
-                            <Bell size={24} />
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
-                        </button>
+                        <NotificationBell
+                            onOpenThread={(ctx) => {
+                                setActiveChatContext(ctx);
+                            }}
+                        />
                     </div>
                 </header>
                 
                 {/* Page Content */}
                 {renderPage()}
+                {activeChatContext && (
+                    <ChatPanel
+                        pc={{
+                            id: activeChatContext.client_id,
+                            name: activeChatContext.client_name || `PC-${activeChatContext.client_id}`,
+                        }}
+                        onClose={() => setActiveChatContext(null)}
+                    />
+                )}
             </main>
         </div>
     );
