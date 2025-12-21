@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import axios from 'axios';
 import { getApiBase, authHeaders, showToast } from '../utils/api';
-import { subscribe as subscribeAdminWs } from '../utils/wsAdmin';
+import { eventStream } from '../utils/eventStream';
+import Login from './Login';
 import { settingsAPI, settingsToObject, objectToSettings } from '../utils/settings.js';
-import { BarChart, Users, Monitor, Gamepad2, DollarSign, Settings as SettingsIcon, Annoyed, LogOut, Search, ChevronDown, Clock, Wallet, Ticket, ShieldCheck, Cpu, Package, ShoppingCart, Calendar, Tag, Star, Award, Gift, Percent, MessageSquare } from 'lucide-react';
+import { BarChart, Users, Monitor, DollarSign, Settings as SettingsIcon, Annoyed, LogOut, Search, Clock, Ticket, Package, ShoppingCart, Calendar, MessageSquare } from 'lucide-react';
 import ChatPanel from './ChatPanel.jsx';
 import NotificationBell from './NotificationBell.jsx';
 
@@ -22,6 +24,13 @@ const StatCard = ({ title, value, icon, color }) => (
     </div>
 );
 
+StatCard.propTypes = {
+    title: PropTypes.string.isRequired,
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    icon: PropTypes.node.isRequired,
+    color: PropTypes.string.isRequired
+};
+
 const Modal = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
@@ -37,6 +46,13 @@ const Modal = ({ isOpen, onClose, title, children }) => {
     );
 };
 
+Modal.propTypes = {
+    isOpen: PropTypes.bool.isRequired,
+    onClose: PropTypes.func.isRequired,
+    title: PropTypes.string.isRequired,
+    children: PropTypes.node.isRequired
+};
+
 const Button = ({ children, onClick, className = '', variant = 'primary' }) => {
     const baseClasses = 'px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-md';
     const variants = {
@@ -49,6 +65,13 @@ const Button = ({ children, onClick, className = '', variant = 'primary' }) => {
             {children}
         </button>
     );
+};
+
+Button.propTypes = {
+    children: PropTypes.node.isRequired,
+    onClick: PropTypes.func,
+    className: PropTypes.string,
+    variant: PropTypes.oneOf(['primary', 'secondary', 'danger'])
 };
 
 // Main Page Components
@@ -159,6 +182,7 @@ const PCManagement = () => {
                     last_seen: p.last_seen || null,
                     remaining_time: null,
                     online: p.status === 'online' || p.status === 'in_use',
+                    capabilities: p.capabilities || { features: [] }
                 }));
             } catch {
                 const r2 = await axios.get(`${base}/api/pc/`, { headers: authHeaders() });
@@ -182,93 +206,64 @@ const PCManagement = () => {
 
     useEffect(() => {
         fetchPcs();
-        // Keep a long-interval polling fallback (5 minutes) for safety; real-time is via WebSocket.
-        const t = setInterval(fetchPcs, 5 * 60 * 1000);
-
-        // Subscribe to ws/admin events for real-time PC updates
-        const unsubscribe = subscribeAdminWs((msg) => {
-            if (!msg || !msg.event) return;
-            if (msg.event === 'pc.status.update') {
-                const payload = msg.payload || {};
-                const id = payload.client_id;
-                if (!id) return;
-                setPcs((prev) => {
-                    let found = false;
-                    const next = prev.map((pc) => {
-                        if (pc.id !== id) return pc;
-                        found = true;
-                        return {
-                            ...pc,
-                            name: payload.hostname || pc.name,
-                            status: payload.online === false ? 'offline' : pc.status,
-                            online: payload.online !== false,
-                            last_seen: payload.last_heartbeat || pc.last_seen,
-                            remaining_time: payload.remaining_time ?? pc.remaining_time,
-                            user_name: payload.user_name || pc.user_name,
-                        };
-                    });
-                    if (!found) {
-                        // If a new PC appears via WS before initial list load finishes
-                        next.push({
-                            id,
-                            name: payload.hostname || `PC-${id}`,
-                            status: payload.online === false ? 'offline' : 'online',
-                            ip_address: '—',
-                            last_seen: payload.last_heartbeat || null,
-                            remaining_time: payload.remaining_time ?? null,
-                            online: payload.online !== false,
-                            user_name: payload.user_name || null,
-                        });
-                    }
-                    return next;
+        
+        // Subscribe to SSE eventStream for real-time PC updates
+        const unsubStatus = eventStream.subscribe('pc.status', (data) => {
+            const pcId = data.pc_id;
+            const payload = data.payload || {};
+            
+            setPcs((prev) => {
+                let found = false;
+                const next = prev.map((pc) => {
+                    if (pc.id !== pcId) return pc;
+                    found = true;
+                    return {
+                        ...pc,
+                        status: payload.status || pc.status,
+                        online: payload.status === 'online',
+                        last_seen: data.timestamp
+                    };
                 });
-            }
-            if (msg.event === 'pc.time.update') {
-                const payload = msg.payload || {};
-                const id = payload.client_id;
-                if (!id) return;
-                const seconds = payload.remaining_time_seconds ?? payload.remaining_time;
-                setPcs((prev) =>
-                    prev.map((pc) =>
-                        pc.id === id
-                            ? {
-                                  ...pc,
-                                  remaining_time:
-                                      typeof seconds === 'number'
-                                          ? Math.floor(seconds / 60)
-                                          : pc.remaining_time,
-                              }
-                            : pc
-                    )
-                );
-            }
-            if (msg.event === 'shop.purchase') {
-                const payload = msg.payload || {};
-                const clientId = payload.client_id;
-                const packName = payload.pack_name || 'pack';
-                const minutes = payload.minutes || 0;
-                showToast(
-                    `Client ${clientId || ''} purchased ${packName} (+${minutes} min).`.trim()
-                );
-                if (clientId) {
-                    setPcs((prev) =>
-                        prev.map((pc) =>
-                            pc.id === clientId
-                                ? {
-                                      ...pc,
-                                      remaining_time:
-                                          (pc.remaining_time || 0) + (minutes || 0),
-                                  }
-                                : pc
-                        )
-                    );
+                
+                if (!found && payload.name) {
+                    next.push({
+                        id: pcId,
+                        name: payload.name,
+                        status: payload.status || 'online',
+                        ip_address: '—',
+                        last_seen: data.timestamp,
+                        online: payload.status === 'online',
+                    });
                 }
+                return next;
+            });
+        });
+
+        const unsubAck = eventStream.subscribe('command.ack', (data) => {
+            const payload = data.payload || {};
+            if (payload.state === 'SUCCEEDED') {
+                showToast(`Command #${payload.command_id} succeeded on PC #${data.pc_id}`);
+            } else if (payload.state === 'FAILED') {
+                showToast(`Command #${payload.command_id} failed: ${payload.result?.error || 'Unknown error'}`);
+            }
+        });
+
+        const unsubShop = eventStream.subscribe('shop.purchase', (data) => {
+            const payload = data.payload || {};
+            showToast(`PC #${data.pc_id} purchased ${payload.pack_name || 'pack'} (+${payload.minutes} min)`);
+            if (data.pc_id) {
+                setPcs(prev => prev.map(pc => 
+                    pc.id === data.pc_id 
+                        ? { ...pc, remaining_time: (pc.remaining_time || 0) + (payload.minutes || 0) } 
+                        : pc
+                ));
             }
         });
 
         return () => {
-            clearInterval(t);
-            unsubscribe && unsubscribe();
+            unsubStatus();
+            unsubAck();
+            unsubShop();
         };
     }, [fetchPcs]);
 
@@ -406,10 +401,30 @@ const PCManagement = () => {
                             )}
                         </div>
                         <div className="mt-6 flex flex-wrap gap-2">
-                            <Button onClick={() => sendCmd(pc.id, 'lock')} variant="secondary" className="flex-1 text-xs">Lock</Button>
-                            <Button onClick={() => sendCmd(pc.id, 'unlock')} variant="secondary" className="flex-1 text-xs">Unlock</Button>
-                            <Button onClick={() => sendCmd(pc.id, 'restart')} variant="secondary" className="flex-1 text-xs">Restart</Button>
-                            <Button onClick={() => { const text = prompt('Message to display on PC'); if (text) sendCmd(pc.id, 'message', { text }); }} variant="secondary" className="flex-1 text-xs">Message</Button>
+                            <Button 
+                                onClick={() => sendCmd(pc.id, 'lock')} 
+                                variant="secondary" 
+                                className="flex-1 text-xs"
+                                disabled={pc.capabilities && !pc.capabilities.features.includes('lock')}
+                            >Lock</Button>
+                            <Button 
+                                onClick={() => sendCmd(pc.id, 'unlock')} 
+                                variant="secondary" 
+                                className="flex-1 text-xs"
+                                disabled={pc.capabilities && !pc.capabilities.features.includes('unlock')}
+                            >Unlock</Button>
+                            <Button 
+                                onClick={() => sendCmd(pc.id, 'restart')} 
+                                variant="secondary" 
+                                className="flex-1 text-xs"
+                                disabled={pc.capabilities && !pc.capabilities.features.includes('restart')}
+                            >Restart</Button>
+                            <Button 
+                                onClick={() => { const text = prompt('Message to display on PC'); if (text) sendCmd(pc.id, 'message', { text }); }} 
+                                variant="secondary" 
+                                className="flex-1 text-xs"
+                                disabled={pc.capabilities && !pc.capabilities.features.includes('message')}
+                            >Message</Button>
                             <Button onClick={() => setChatPc(pc)} variant="secondary" className="flex-1 text-xs">
                                 <MessageSquare size={12} className="mr-1" /> Chat
                             </Button>
@@ -1155,7 +1170,7 @@ const StatisticsPage = () => {
 
 
 // Main App Component
-const App = () => {
+const AdminUI = ({ cafeInfo, onLogout }) => {
     const [activePage, setActivePage] = useState('Dashboard');
     const [activeChatContext, setActiveChatContext] = useState(null);
 
@@ -1215,13 +1230,15 @@ const App = () => {
                 </div>
                 <div>
                     <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-700/50">
-                        <img src="https://placehold.co/40x40/7e22ce/ffffff?text=A" alt="Admin" className="w-10 h-10 rounded-full" />
+                        <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white text-lg">
+                            {cafeInfo?.name?.charAt(0) || 'A'}
+                        </div>
                         <div>
-                            <p className="font-semibold text-white">Cafe Admin</p>
-                            <p className="text-xs text-gray-400">admin@cafe.com</p>
+                            <p className="font-semibold text-white">{cafeInfo?.name || 'Cafe Admin'}</p>
+                            <p className="text-xs text-gray-400">{cafeInfo?.location || 'admin@cafe.com'}</p>
                         </div>
                     </div>
-                     <button className="w-full flex items-center justify-center space-x-2 p-3 mt-4 rounded-lg text-gray-400 hover:bg-red-500/20 hover:text-red-300 transition-colors">
+                     <button onClick={onLogout} className="w-full flex items-center justify-center space-x-2 p-3 mt-4 rounded-lg text-gray-400 hover:bg-red-500/20 hover:text-red-300 transition-colors">
                         <LogOut size={20} />
                         <span>Logout</span>
                     </button>
@@ -1263,6 +1280,53 @@ const App = () => {
             </main>
         </div>
     );
+};
+
+const App = () => {
+    const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('primus_jwt'));
+    const [cafeInfo, setCafeInfo] = useState(null);
+
+    const fetchCafeInfo = useCallback(async () => {
+        try {
+            const base = getApiBase().replace(/\/$/, "");
+            const r = await axios.get(`${base}/api/cafe/mine`, { headers: authHeaders() });
+            setCafeInfo(r.data);
+        } catch (e) {
+            if (e.response?.status === 401) {
+                localStorage.removeItem('primus_jwt');
+                setIsLoggedIn(false);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            fetchCafeInfo();
+            eventStream.connect();
+        } else {
+            eventStream.disconnect();
+        }
+        return () => eventStream.disconnect();
+    }, [isLoggedIn, fetchCafeInfo]);
+
+    if (!isLoggedIn) {
+        return <Login onLoginSuccess={() => setIsLoggedIn(true)} />;
+    }
+
+    return (
+        <AdminUI 
+            cafeInfo={cafeInfo} 
+            onLogout={() => {
+                localStorage.removeItem('primus_jwt');
+                setIsLoggedIn(false);
+            }} 
+        />
+    );
+};
+
+App.propTypes = {
+    cafeInfo: PropTypes.object,
+    onLogout: PropTypes.func.isRequired
 };
 
 export default App;
