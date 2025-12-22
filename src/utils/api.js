@@ -1,4 +1,18 @@
-const ENV_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const hostname = window.location.hostname;
+const isLocal =
+  hostname === "localhost" ||
+  hostname === "127.0.0.1" ||
+  hostname.startsWith("192.168.") ||
+  hostname.startsWith("10.") ||
+  hostname.endsWith(".local");
+
+const rootHost = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
+
+const ENV_BASE =
+  (typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_API_BASE_URL) ||
+  (isLocal ? `http://${hostname}:8000` : `https://api.${rootHost}`);
 
 export function getApiBase() {
   return localStorage.getItem("primus_api_base") || ENV_BASE;
