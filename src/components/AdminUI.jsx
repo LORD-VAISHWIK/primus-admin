@@ -171,6 +171,7 @@ const PCManagement = () => {
         try {
             setLoading(true);
             const base = getApiBase().replace(/\/$/, "");
+            console.log('[PCManagement] Using API base:', base);
             // Prefer cafe-scoped client PCs if available, else fallback to global PCs
             let list = [];
             try {
@@ -188,7 +189,8 @@ const PCManagement = () => {
                     user_name: p.user_name || null,  // Will be populated by enhanced endpoint
                     session_start: p.session_start || null
                 }));
-            } catch {
+            } catch (e1) {
+                console.error('[PCManagement] /api/clientpc/ failed:', e1.response?.status, e1.response?.data || e1.message);
                 const r2 = await axios.get(`${base}/api/pc/`, { headers: authHeaders() });
                 list = (r2.data || []).map(p => ({
                     id: p.id,
@@ -204,7 +206,8 @@ const PCManagement = () => {
             }
             setPcs(list);
         } catch (e) {
-            showToast('Failed to load PCs');
+            console.error('[PCManagement] All PC fetches failed:', e.response?.status, e.response?.data || e.message);
+            showToast('Failed to load PCs: ' + (e.response?.data?.detail || e.message));
         } finally {
             setLoading(false);
         }
