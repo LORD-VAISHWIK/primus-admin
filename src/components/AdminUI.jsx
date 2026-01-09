@@ -215,7 +215,9 @@ const PCManagement = () => {
 
     useEffect(() => {
         fetchPcs();
+    }, [fetchPcs]);
 
+    useEffect(() => {
         // Subscribe to SSE eventStream for real-time PC updates
         const unsubStatus = eventStream.subscribe('pc.status', (data) => {
             const pcId = data.pc_id;
@@ -307,7 +309,7 @@ const PCManagement = () => {
             unsubShop();
             unsubPayment();
         };
-    }, [fetchPcs, pcs]);
+    }, [pcs]);
 
     const sendCmd = async (pcId, cmd, paramsObj) => {
         try {
