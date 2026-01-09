@@ -533,7 +533,7 @@ const PCManagement = () => {
                                 <button className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm" onClick={() => { sendCmd(pc.id, 'logout'); setMenuOpenId(null); }}>Log out user</button>
                                 <button className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm" onClick={() => { sendCmd(pc.id, 'shutdown'); setMenuOpenId(null); }}>Shutdown PC</button>
                                 <button className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm" onClick={() => { sendCmd(pc.id, 'restart'); setMenuOpenId(null); }}>Reboot PC</button>
-                                <button className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm text-red-300" onClick={async () => { try { const base = getApiBase().replace(/\/$/, ""); await axios.post(`${base}/api/pc/state/${pc.id}?status=offline`, null, { headers: authHeaders() }); showToast('PC marked offline'); } catch { showToast('Failed to update PC'); } finally { setMenuOpenId(null); fetchPcs(); } }}>Remove PC</button>
+                                <button className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm text-red-300" onClick={async () => { try { const base = getApiBase().replace(/\/$/, ""); await axios.delete(`${base}/api/clientpc/${pc.id}`, { headers: authHeaders() }); showToast('PC removed'); } catch { showToast('Failed to remove PC'); } finally { setMenuOpenId(null); fetchPcs(); } }}>Remove PC</button>
                             </div>
                         )}
                     </div>
