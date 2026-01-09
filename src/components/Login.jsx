@@ -13,17 +13,20 @@ const Login = ({ onLoginSuccess }) => {
         setLoading(true);
         try {
             const base = getApiBase().replace(/\/$/, "");
+            console.log('[Login] Using API base:', base);
             const formData = new FormData();
             formData.append('username', email);
             formData.append('password', password);
-            
+
             const response = await axios.post(`${base}/api/auth/login`, formData);
             const { access_token } = response.data;
-            
+
             localStorage.setItem('primus_jwt', access_token);
             onLoginSuccess();
         } catch (err) {
-            showToast('Login failed: Invalid credentials');
+            console.error('[Login] Error:', err.response?.status, err.response?.data || err.message);
+            const detail = err.response?.data?.detail || 'Invalid credentials';
+            showToast(`Login failed: ${detail}`);
         } finally {
             setLoading(false);
         }
@@ -36,41 +39,41 @@ const Login = ({ onLoginSuccess }) => {
                     <h1 className="text-3xl font-bold text-white mb-2">Primus Admin</h1>
                     <p className="text-gray-400">Enter your credentials to manage your cafe</p>
                 </div>
-                
+
                 <form onSubmit={handleLogin} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
-                        <input 
-                            type="email" 
-                            required 
+                        <input
+                            type="email"
+                            required
                             className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                             placeholder="admin@yourcafe.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />
                     </div>
-                    
+
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-                        <input 
-                            type="password" 
-                            required 
+                        <input
+                            type="password"
+                            required
                             className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
                     </div>
-                    
-                    <button 
-                        type="submit" 
+
+                    <button
+                        type="submit"
                         disabled={loading}
                         className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50"
                     >
                         {loading ? 'Logging in...' : 'Sign In'}
                     </button>
                 </form>
-                
+
                 <div className="mt-8 text-center">
                     <p className="text-sm text-gray-500">
                         Need help? Contact <a href="mailto:support@primustech.in" className="text-indigo-400 hover:underline">support@primustech.in</a>
