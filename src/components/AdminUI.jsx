@@ -574,17 +574,41 @@ const UserManagement = () => {
         setAmount(0);
     };
 
-    const handleWalletAction = () => {
-        console.log(`Performing '${action}' of $${amount} for user ${selectedUser.id}`);
-        // API call to /api/wallet
-        setUsers(users.map(u => {
-            if (u.id === selectedUser.id) {
-                const newBalance = action === 'topup' ? u.wallet_balance + parseFloat(amount) : u.wallet_balance - parseFloat(amount);
-                return { ...u, wallet_balance: newBalance };
+    const handleWalletAction = async () => {
+        try {
+            const base = getApiBase().replace(/\/$/, "");
+            if (action === 'add-time') {
+                await axios.post(`${base}/api/offer/admin/add-time/${selectedUser.id}`, null, {
+                    params: { hours: parseFloat(amount) },
+                    headers: authHeaders()
+                });
+                showToast(`Added ${amount} hours to ${selectedUser.name}`);
+            } else {
+                const endpoint = action === 'topup' ? 'topup' : 'deduct';
+                await axios.post(`${base}/api/wallet/${endpoint}`, {
+                    amount: parseFloat(amount),
+                    type: action,
+                    user_id: selectedUser.id,
+                    description: `Admin ${action} via UI`
+                }, { headers: { ...authHeaders(), 'Content-Type': 'application/json' } });
+
+                showToast(`Successfully performed ${action}`);
+
+                // Update local state
+                setUsers(users.map(u => {
+                    if (u.id === selectedUser.id) {
+                        const val = parseFloat(amount);
+                        const newBalance = action === 'topup' ? u.wallet_balance + val : u.wallet_balance - val;
+                        return { ...u, wallet_balance: newBalance };
+                    }
+                    return u;
+                }));
             }
-            return u;
-        }));
-        setIsModalOpen(false);
+            setIsModalOpen(false);
+        } catch (e) {
+            console.error(e);
+            showToast(`Failed: ${e.response?.data?.detail || e.message}`);
+        }
     };
 
     return (
@@ -621,6 +645,7 @@ const UserManagement = () => {
                                     <div className="flex space-x-2">
                                         <Button onClick={() => openUserModal(user, 'topup')} variant="secondary" className="text-xs px-2 py-1">Top-up</Button>
                                         <Button onClick={() => openUserModal(user, 'deduct')} variant="danger" className="text-xs px-2 py-1">Deduct</Button>
+                                        <Button onClick={() => openUserModal(user, 'add-time')} variant="primary" className="text-xs px-2 py-1 bg-green-600 hover:bg-green-500">Add Time</Button>
                                     </div>
                                 </td>
                             </tr>
@@ -628,15 +653,15 @@ const UserManagement = () => {
                     </tbody>
                 </table>
             </div>
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${action === 'topup' ? 'Top-up' : 'Deduct from'} Wallet`}>
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${action === 'topup' ? 'Top-up' : action === 'add-time' ? 'Add Time' : 'Deduct from'} ${action === 'add-time' ? 'User' : 'Wallet'}`}>
                 {selectedUser && (
                     <div>
                         <p className="text-gray-300 mb-4">User: <span className="font-bold text-white">{selectedUser.name}</span></p>
                         <p className="text-gray-300 mb-4">Current Balance: <span className="font-bold text-green-400">${selectedUser.wallet_balance.toFixed(2)}</span></p>
-                        <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-2">Amount</label>
+                        <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-2">{action === 'add-time' ? 'Hours' : 'Amount'}</label>
                         <div className="relative">
                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                <span className="text-gray-400 sm:text-sm">$</span>
+                                <span className="text-gray-400 sm:text-sm">{action === 'add-time' ? '⏱️' : '$'}</span>
                             </div>
                             <input
                                 type="number"
