@@ -6,17 +6,13 @@ const isLocal =
   hostname.startsWith("10.") ||
   hostname.endsWith(".local");
 
-// For production admin portal at primusadmin.in, use api.primustech.in
-const isPrimusAdmin = hostname.includes("primusadmin.in");
 const rootHost = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
 
 const ENV_BASE =
   (typeof import.meta !== "undefined" &&
     import.meta.env &&
     import.meta.env.VITE_API_BASE_URL) ||
-  (isLocal ? `http://${hostname}:8000` :
-    isPrimusAdmin ? `https://api.primustech.in` :
-      `https://api.${rootHost}`);
+  (isLocal ? `http://${hostname}:8000` : `https://api.${rootHost}`);
 
 export function getApiBase() {
   return localStorage.getItem("primus_api_base") || ENV_BASE;
