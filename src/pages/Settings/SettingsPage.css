@@ -1,0 +1,154 @@
+.Settings_Title{
+      font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 0px;
+    margin-top: 22px;
+}
+.sidebar {
+  --sidebar-width: 300px;
+
+  /* Surface */
+  --bg-top: #0d1424;
+  --bg-bottom: #0a0e1a;
+  --bg-glow: rgba(34, 78, 92, 0.45); /* subtle teal tint top-left */
+
+  /* Text */
+  --text: #e9edf5;
+  --text-dim: #aab2c5;
+
+  /* Active highlight gradient */
+  --active-from: #ff9d00;
+  --active-to: #ff2d1a;
+
+  --row-height: 46px;
+  --row-pad-x: 22px;
+  --radius: 8px;
+
+  width: var(--sidebar-width);
+  box-sizing: border-box;
+  padding: 14px 10px;
+
+  border-right: 1px solid #2D374880;
+  color: var(--text);
+  user-select: none;
+}
+
+.sidebar__list,
+.sidebar__sublist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar__item {
+  margin: 2px 0;
+}
+
+/* ---- Top-level row -------------------------------------------------- */
+
+.sidebar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  width: 100%;
+  min-height: var(--row-height);
+  padding: 0 var(--row-pad-x);
+  box-sizing: border-box;
+
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.sidebar__row:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar__row:focus-visible {
+  outline: 2px solid rgba(255, 157, 0, 0.6);
+  outline-offset: -2px;
+}
+
+.sidebar__row.is-active {
+  background: linear-gradient(22.93deg, #FE7B00 27.28%, #F7302F 66.92%);
+  color: #fff;
+  font-weight: 400;
+  box-shadow: 0 6px 18px rgba(255, 70, 20, 0.28);
+}
+.sidebar__subrow.is-active {
+  color: #ffffff;
+  background: rgba(255, 122, 24, 0.14);
+  font-weight: 400;
+  border-radius: 8px;
+  border-left: 3px solid #FE7B00;
+}
+
+
+.sidebar__label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+}
+
+/* ---- Chevron -------------------------------------------------------- */
+
+.sidebar__chevron {
+  flex: 0 0 auto;
+  color: currentColor;
+  opacity: 0.85;
+  transition: transform 0.22s ease;
+}
+
+.sidebar__chevron.is-open {
+  transform: rotate(90deg); /* points down when the panel is open */
+}
+
+/* ---- Expandable panel (accordion) ---------------------------------- */
+
+.sidebar__panel {
+  display: grid;
+  grid-template-rows: 0fr; /* collapsed */
+  transition: grid-template-rows 0.25s ease;
+}
+
+.sidebar__panel.is-open {
+  grid-template-rows: 1fr; /* expanded */
+}
+
+.sidebar__panel > .sidebar__sublist {
+  overflow: hidden;
+}
+
+.sidebar__subrow {
+  display: block;
+  width: 100%;
+  padding: 10px var(--row-pad-x) 10px 25px;
+  box-sizing: border-box;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 14px;
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  margin-top: 5px;
+}
+
+.sidebar__subrow:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}

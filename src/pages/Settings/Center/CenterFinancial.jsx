@@ -1,23 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { showToast } from '../../../utils/api';
 import { settingsAPI, settingsToObject, objectToSettings } from '../../../utils/settings.js';
+import "../SettingsPageRight.css";
 
-function Field({ label, children }) {
-    return <div className='mb-3'><div className='text-gray-300 text-sm mb-1'>{label}</div>{children}</div>;
-}
-
-function Toggle({ label, value, onChange }) {
-    const handleToggle = () => {
-        if (onChange) {
-            onChange(!value);
-        }
-    };
-
-    return <div className='flex items-center justify-between bg-white/5 p-3 rounded-md mb-2'>
-        <div className='text-gray-300'>{label}</div>
-        <button className={`w-10 h-6 rounded-full ${value ? 'bg-primary' : 'bg-gray-600'}`} onClick={handleToggle}><span className={`block w-5 h-5 bg-white rounded-full transform transition ${value ? 'translate-x-5' : 'translate-x-0'}`}></span></button>
-    </div>;
-}
+const CheckIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5"
+       strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
 
 function CenterFinancial() {
     const [financialSettings, setFinancialSettings] = useState({
@@ -95,143 +86,190 @@ function CenterFinancial() {
 
     if (loading) {
         return (
-            <div className='text-xl text-white font-semibold mb-4'>
-                Center/Financial
+            <div className="financial-page">
+                <h1 className="financial-page__title">Center/Financial</h1>
                 <div className='text-gray-400 text-sm mt-2'>Loading settings...</div>
             </div>
         );
     }
 
     return (
-        <div>
-            <div className='text-xl text-white font-semibold mb-4'>Center/Financial</div>
-            <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-                <div className='card-animated p-4'>
-                    <div className='text-gray-400 text-sm mb-2'>Billing information</div>
-                    <Field label='Company name'>
-                        <input
-                            className='search-input w-full rounded-md px-3 py-2'
-                            value={financialSettings.company_name}
-                            onChange={(e) => updateSetting('company_name', e.target.value)}
-                        />
-                    </Field>
-                    <div className='grid grid-cols-2 gap-3'>
-                        <Field label='Tax number'>
+        <div className="financial-page">
+            <h1 className="financial-page__title">Center/Financial</h1>
+
+            <div className="financial-grid">
+                {/* ---------------- Left column ---------------- */}
+                <div className="financial-col">
+                    <section className="card card--violet">
+                        <h2 className="card__title">Billing Information</h2>
+
+                        <div className="field">
+                            <label className="field__label">Company name</label>
                             <input
-                                className='search-input w-full rounded-md px-3 py-2'
-                                value={financialSettings.tax_number}
-                                onChange={(e) => updateSetting('tax_number', e.target.value)}
+                                className="input"
+                                type="text"
+                                value={financialSettings.company_name}
+                                onChange={(e) => updateSetting('company_name', e.target.value)}
                             />
-                        </Field>
-                        <Field label='Decimal places'>
-                            <input
-                                className='search-input w-full rounded-md px-3 py-2'
-                                type='number'
-                                value={financialSettings.decimal_places}
-                                onChange={(e) => updateSetting('decimal_places', parseInt(e.target.value) || 2)}
-                            />
-                        </Field>
-                    </div>
-                    <Field label='Address'>
-                        <input
-                            className='search-input w-full rounded-md px-3 py-2'
-                            value={financialSettings.address}
-                            onChange={(e) => updateSetting('address', e.target.value)}
-                        />
-                    </Field>
-                </div>
-                <div className='card-animated p-4'>
-                    <div className='text-gray-400 text-sm mb-2'>Accepted web-admin payment methods</div>
-                    <div className='flex gap-3'>
-                        {[
-                            { key: 'payment_cash', label: 'Cash' },
-                            { key: 'payment_credit_card', label: 'Credit card' },
-                            { key: 'payment_account_balance', label: 'Account balance' }
-                        ].map(({ key, label }) => (
-                            <label key={key} className='pill'>
+                        </div>
+
+                        <div className="field-row">
+                            <div className="field">
+                                <label className="field__label">Tax number</label>
                                 <input
-                                    type='checkbox'
-                                    className='mr-2'
-                                    checked={financialSettings[key]}
-                                    onChange={(e) => updateSetting(key, e.target.checked)}
+                                    className="input"
+                                    type="text"
+                                    value={financialSettings.tax_number}
+                                    onChange={(e) => updateSetting('tax_number', e.target.value)}
                                 />
-                                {label}
+                            </div>
+                            <div className="field field--narrow">
+                                <label className="field__label">Decimal places</label>
+                                <input
+                                    className="input"
+                                    type="number"
+                                    value={financialSettings.decimal_places}
+                                    onChange={(e) => updateSetting('decimal_places', parseInt(e.target.value) || 2)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="field">
+                            <label className="field__label">Address</label>
+                            <textarea
+                                className="textarea"
+                                value={financialSettings.address}
+                                onChange={(e) => updateSetting('address', e.target.value)}
+                            />
+                        </div>
+                    </section>
+                </div>
+
+                {/* ---------------- Right column ---------------- */}
+                <div className="financial-col">
+                    <section className="card card--violet">
+                        <h2 className="card__title">Accepted Web-Admin Payment Methods</h2>
+                        <div className="radio-row">
+                            <label className="checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={financialSettings.payment_cash}
+                                    onChange={(e) => updateSetting('payment_cash', e.target.checked)}
+                                />
+                                <span className="checkbox__box">
+                                    <CheckIcon />
+                                </span>
+                                Cash
                             </label>
-                        ))}
-                    </div>
-                    <div className='text-gray-400 text-sm mb-2 mt-4'>Accepted client payment methods</div>
-                    <Toggle
-                        label='Account balance'
-                        value={financialSettings.client_account_balance}
-                        onChange={(value) => updateSetting('client_account_balance', value)}
-                    />
-                    <Toggle
-                        label='Summon a human'
-                        value={financialSettings.client_summon_human}
-                        onChange={(value) => updateSetting('client_summon_human', value)}
-                    />
-                    <Toggle
-                        label='Stripe (phone)'
-                        value={financialSettings.client_stripe_phone}
-                        onChange={(value) => updateSetting('client_stripe_phone', value)}
-                    />
-                    <Toggle
-                        label='Pay after logout'
-                        value={financialSettings.client_pay_after_logout}
-                        onChange={(value) => updateSetting('client_pay_after_logout', value)}
-                    />
+                            <label className="checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={financialSettings.payment_credit_card}
+                                    onChange={(e) => updateSetting('payment_credit_card', e.target.checked)}
+                                />
+                                <span className="checkbox__box">
+                                    <CheckIcon />
+                                </span>
+                                Credit card
+                            </label>
+                            <label className="checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={financialSettings.payment_account_balance}
+                                    onChange={(e) => updateSetting('payment_account_balance', e.target.checked)}
+                                />
+                                <span className="checkbox__box">
+                                    <CheckIcon />
+                                </span>
+                                Account balance
+                            </label>
+                        </div>
+                    </section>
+
+                    <section className="card card--violet">
+                        <h2 className="card__title">Accepted Client Payment Methods</h2>
+                        <div className="toggle-list">
+                            {[
+                                ["client_account_balance", "Account balance"],
+                                ["client_summon_human", "Summon a human"],
+                                ["client_stripe_phone", "Stripe (phone)"],
+                                ["client_pay_after_logout", "Pay after logout"],
+                            ].map(([key, label]) => (
+                                <div className="toggle-row" key={key}>
+                                    <span className="toggle-row__label">{label}</span>
+                                    <button
+                                        type="button"
+                                        className={`toggle ${financialSettings[key] ? "is-on" : ""}`}
+                                        aria-pressed={financialSettings[key]}
+                                        onClick={() => updateSetting(key, !financialSettings[key])}
+                                    >
+                                        <span className="toggle__knob" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
                 </div>
             </div>
-            <div className='card-animated p-4 mt-4'>
-                <div className='text-gray-400 text-sm mb-2'>Tax rates</div>
-                <label className='pill inline-flex items-center mb-3'>
+
+            {/* ---------------- Tax Rates ---------------- */}
+            <section className="card card--slate" style={{ marginTop: 20 }}>
+                <h2 className="card__title">Tax Rates</h2>
+
+                <label className="checkbox">
                     <input
-                        type='checkbox'
-                        className='mr-2'
+                        type="checkbox"
                         checked={financialSettings.tax_included_in_price}
                         onChange={(e) => updateSetting('tax_included_in_price', e.target.checked)}
                     />
+                    <span className="checkbox__box">
+                        <CheckIcon />
+                    </span>
                     Tax calculation included in price
                 </label>
-                {[1, 2, 3].map(i => (
-                    <div key={i} className='grid grid-cols-2 lg:grid-cols-4 gap-3 mb-2'>
-                        <Field label={`Tax ${i} Name`}>
+
+                {[1, 2, 3].map((n) => (
+                    <div className="field-row tax-block" key={n}>
+                        <div className="field" style={{ marginBottom: 0 }}>
+                            <label className="field__label">Tax {n} Name</label>
                             <input
-                                className='search-input w-full rounded-md px-3 py-2'
-                                value={financialSettings[`tax${i}_name`]}
-                                onChange={(e) => updateSetting(`tax${i}_name`, e.target.value)}
+                                className="input"
+                                type="text"
+                                value={financialSettings[`tax${n}_name`] || ''}
+                                onChange={(e) => updateSetting(`tax${n}_name`, e.target.value)}
                             />
-                        </Field>
-                        <Field label='Percentage'>
+                        </div>
+                        <div className="field" style={{ marginBottom: 0 }}>
+                            <label className="field__label">Percentage</label>
                             <input
-                                className='search-input w-full rounded-md px-3 py-2'
-                                type='number'
-                                step='0.01'
-                                value={financialSettings[`tax${i}_percentage`]}
-                                onChange={(e) => updateSetting(`tax${i}_percentage`, parseFloat(e.target.value) || 0.00)}
+                                className="input"
+                                type="number"
+                                step="0.01"
+                                value={financialSettings[`tax${n}_percentage`] || 0}
+                                onChange={(e) => updateSetting(`tax${n}_percentage`, parseFloat(e.target.value) || 0.00)}
                             />
-                        </Field>
+                        </div>
                     </div>
                 ))}
-                <div className='mt-6'>
-                    <Field label='Guest legacy prices'>
-                        <select
-                            className='search-input rounded-md px-3 py-2'
-                            value={financialSettings.guest_legacy_prices}
-                            onChange={(e) => updateSetting('guest_legacy_prices', e.target.value)}
-                        >
-                            <option>Price per hour (INR)</option>
-                            <option>Price per minute (INR)</option>
-                            <option>Fixed price per session</option>
-                        </select>
-                    </Field>
-                </div>
-                <button
-                    className='pill mt-2'
-                    onClick={saveFinancialSettings}
-                    disabled={saving}
+
+                <h3 className="subheading">Guest Legacy Prices</h3>
+                <select
+                    className="input"
+                    style={{ background: 'var(--input-bg)' }}
+                    value={financialSettings.guest_legacy_prices}
+                    onChange={(e) => updateSetting('guest_legacy_prices', e.target.value)}
                 >
-                    {saving ? 'Saving...' : 'Save changes'}
+                    <option>Price per hour (INR)</option>
+                    <option>Price per minute (INR)</option>
+                    <option>Fixed price per session</option>
+                </select>
+            </section>
+
+            {/* ---------------- Actions ---------------- */}
+            <div className="actions">
+                <button type="button" className="btn btn--ghost" onClick={loadFinancialSettings}>Cancel</button>
+                <button type="button" className="btn btn--primary" onClick={saveFinancialSettings} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Changes'}
                 </button>
             </div>
         </div>

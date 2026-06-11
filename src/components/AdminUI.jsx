@@ -56,7 +56,7 @@ import BookingsPage from '../pages/Bookings/BookingsPage';
 import ActivityPage from '../pages/Activity/ActivityPage';
 
 // Phase 3 settings tree (delegates to Client/Center/Licenses subpages).
-import SettingsRoot from '../pages/Settings/SettingsRoot';
+import SettingsPage from '../pages/Settings/SettingsPage';
 
 
 const AdminUI = ({ cafeInfo, onLogout }) => {
@@ -113,7 +113,7 @@ const AdminUI = ({ cafeInfo, onLogout }) => {
             case 'Activity tracker':
                 return <ActivityPage />;
             case 'Settings':
-                return <SettingsRoot />;
+                return <SettingsPage />;
             default:
                 return <Dashboard />;
         }
